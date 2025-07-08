@@ -45,7 +45,7 @@ extension UserPreferences {
     var overlayTypeEnum: OverlayType {
         switch overlayType?.lowercased() {
         case "full":
-            return .fullScreen
+            return .full
         case "partial":
             return .partial
         case "notification":
@@ -181,7 +181,7 @@ extension UserPreferences {
         microBreakDuration = 30 // 30 seconds
         regularBreakInterval = 60 // 60 minutes
         regularBreakDuration = 300 // 5 minutes
-        overlayType = OverlayType.partial.rawValue
+        overlayType = "partial"
         enableSmartScheduling = true
         soundEnabled = true
         selectedSoundtrack = nil
@@ -264,32 +264,4 @@ extension UserPreferences {
     }
 }
 
-// MARK: - Supporting Enums
-
-enum OverlayType: String, CaseIterable {
-    case fullScreen = "full"
-    case partial = "partial"
-    case notification = "notification"
-    
-    var displayName: String {
-        switch self {
-        case .fullScreen:
-            return "Full Screen"
-        case .partial:
-            return "Partial Overlay"
-        case .notification:
-            return "Notification Only"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .fullScreen:
-            return "Dims the entire screen during breaks"
-        case .partial:
-            return "Shows a semi-transparent overlay"
-        case .notification:
-            return "Shows only a notification banner"
-        }
-    }
-} 
+ 

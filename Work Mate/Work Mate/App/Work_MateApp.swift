@@ -14,6 +14,9 @@ struct Work_MateApp: App {
     // Core Data persistence controller
     let persistenceController = PersistenceController.shared
     
+    // Settings manager
+    @StateObject private var settingsManager = SettingsManager.shared
+    
     // Core state objects that will be created in later steps
     @StateObject private var appState = AppState()
     
@@ -22,6 +25,7 @@ struct Work_MateApp: App {
         MenuBarExtra("Work Mate", systemImage: "clock") {
             MenuBarView()
                 .environmentObject(appState)
+                .environmentObject(settingsManager)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .menuBarExtraStyle(.window)
@@ -30,6 +34,7 @@ struct Work_MateApp: App {
         WindowGroup("Settings", id: "settings") {
             SettingsWindow()
                 .environmentObject(appState)
+                .environmentObject(settingsManager)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .windowResizability(.contentSize)
@@ -47,6 +52,7 @@ class AppState: ObservableObject {
 // Temporary placeholder views - will be properly implemented in later steps
 struct MenuBarView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var settingsManager: SettingsManager
     
     var body: some View {
         VStack(spacing: 12) {
@@ -57,7 +63,32 @@ struct MenuBarView: View {
                 Text("Break in progress...")
                     .foregroundColor(.orange)
             } else {
-                Text("Next break in \(Int(appState.timeUntilNextBreak / 60)) min")
+                HStack {
+                    Text("Next micro break:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(settingsManager.microBreakInterval) min")
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.blue)
+                }
+                
+                HStack {
+                    Text("Next regular break:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(settingsManager.regularBreakInterval) min")
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.green)
+                }
+            }
+            
+            Divider()
+            
+            HStack {
+                Image(systemName: settingsManager.soundEnabled ? "speaker.2" : "speaker.slash")
+                    .foregroundColor(settingsManager.soundEnabled ? .primary : .secondary)
+                Text(settingsManager.overlayTypeEnum.displayName)
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
             
@@ -72,7 +103,7 @@ struct MenuBarView: View {
             }
         }
         .padding()
-        .frame(width: 200)
+        .frame(width: 220)
     }
     
     private func openSettings() {
@@ -88,18 +119,92 @@ struct MenuBarView: View {
 
 struct SettingsWindow: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var settingsManager: SettingsManager
     
     var body: some View {
-        VStack {
+        VStack(alignment: .leading, spacing: 20) {
             Text("Work Mate Settings")
                 .font(.title)
-                .padding()
+                .padding(.bottom)
             
-            Text("Settings interface will be implemented in later steps")
-                .foregroundColor(.secondary)
+            GroupBox("Break Intervals") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Micro break interval:")
+                        Spacer()
+                        Stepper("\(settingsManager.microBreakInterval) minutes", 
+                               value: $settingsManager.microBreakInterval, 
+                               in: 5...30, 
+                               step: 5)
+                    }
+                    
+                    HStack {
+                        Text("Micro break duration:")
+                        Spacer()
+                        Stepper("\(settingsManager.microBreakDuration) seconds", 
+                               value: $settingsManager.microBreakDuration, 
+                               in: 15...120, 
+                               step: 15)
+                    }
+                    
+                    HStack {
+                        Text("Regular break interval:")
+                        Spacer()
+                        Stepper("\(settingsManager.regularBreakInterval) minutes", 
+                               value: $settingsManager.regularBreakInterval, 
+                               in: 30...120, 
+                               step: 15)
+                    }
+                    
+                    HStack {
+                        Text("Regular break duration:")
+                        Spacer()
+                        Stepper(TimeInterval.minutes(settingsManager.regularBreakDuration / 60).formattedString, 
+                               value: $settingsManager.regularBreakDuration, 
+                               in: 120...900, 
+                               step: 60)
+                    }
+                }
+                .padding()
+            }
+            
+            GroupBox("Break Behavior") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Overlay Type:")
+                        Spacer()
+                        Picker("Overlay Type", selection: $settingsManager.overlayTypeEnum) {
+                            ForEach(OverlayType.allCases, id: \.self) { type in
+                                Text(type.displayName).tag(type)
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                        .frame(width: 150)
+                    }
+                    
+                    Toggle("Smart scheduling", isOn: $settingsManager.enableSmartScheduling)
+                    Toggle("Pause on inactivity", isOn: $settingsManager.pauseOnInactivity)
+                    Toggle("Enable sounds", isOn: $settingsManager.soundEnabled)
+                }
+                .padding()
+            }
+            
+            HStack {
+                Button("Reset to Defaults") {
+                    settingsManager.resetToDefaults()
+                }
+                .buttonStyle(BorderedButtonStyle())
+                
+                Spacer()
+                
+                Text("Settings are automatically saved")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
             
             Spacer()
         }
+        .padding()
         .frame(minWidth: 500, minHeight: 600)
     }
 }

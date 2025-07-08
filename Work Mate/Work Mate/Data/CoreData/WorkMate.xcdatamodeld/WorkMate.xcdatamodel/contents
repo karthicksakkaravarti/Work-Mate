@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="BreakSession" representedClassName="BreakSession" syncable="YES" codeGenerationType="none">
+        <attribute name="actualDuration" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="breakType" optional="NO" attributeType="String" defaultValueString="micro"/>
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="endTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="scheduledDuration" optional="NO" attributeType="Integer 32" defaultValueString="30" usesScalarValueType="YES"/>
+        <attribute name="skipReason" optional="YES" attributeType="String"/>
+        <attribute name="startTime" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="wasCompleted" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="wasSkipped" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="dailyStatistics" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="DailyStatistics" inverseName="breakSessions" inverseEntity="DailyStatistics"/>
+    </entity>
+    <entity name="DailyStatistics" representedClassName="DailyStatistics" syncable="YES" codeGenerationType="none">
+        <attribute name="breaksCompleted" optional="NO" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="breaksScheduled" optional="NO" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="breaksSkipped" optional="NO" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="complianceRate" optional="NO" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="date" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="longestWorkStreak" optional="NO" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="totalBreakTime" optional="NO" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="totalWorkTime" optional="NO" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="breakSessions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="BreakSession" inverseName="dailyStatistics" inverseEntity="BreakSession"/>
+    </entity>
+    <entity name="UserPreferences" representedClassName="UserPreferences" syncable="YES" codeGenerationType="none">
+        <attribute name="blacklistedApps" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer" customClassName="[String]"/>
+        <attribute name="enableSmartScheduling" optional="NO" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastModified" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="microBreakDuration" optional="NO" attributeType="Integer 32" defaultValueString="30" usesScalarValueType="YES"/>
+        <attribute name="microBreakInterval" optional="NO" attributeType="Integer 32" defaultValueString="10" usesScalarValueType="YES"/>
+        <attribute name="overlayType" optional="NO" attributeType="String" defaultValueString="partial"/>
+        <attribute name="regularBreakDuration" optional="NO" attributeType="Integer 32" defaultValueString="300" usesScalarValueType="YES"/>
+        <attribute name="regularBreakInterval" optional="NO" attributeType="Integer 32" defaultValueString="60" usesScalarValueType="YES"/>
+        <attribute name="selectedSoundtrack" optional="YES" attributeType="String"/>
+        <attribute name="soundEnabled" optional="NO" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="workEndTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="workStartTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+</model> 

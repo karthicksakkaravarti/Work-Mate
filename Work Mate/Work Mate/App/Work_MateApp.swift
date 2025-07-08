@@ -11,6 +11,9 @@ import SwiftUI
 struct Work_MateApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
+    // Core Data persistence controller
+    let persistenceController = PersistenceController.shared
+    
     // Core state objects that will be created in later steps
     @StateObject private var appState = AppState()
     
@@ -19,6 +22,7 @@ struct Work_MateApp: App {
         MenuBarExtra("Work Mate", systemImage: "clock") {
             MenuBarView()
                 .environmentObject(appState)
+                .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .menuBarExtraStyle(.window)
         
@@ -26,6 +30,7 @@ struct Work_MateApp: App {
         WindowGroup("Settings", id: "settings") {
             SettingsWindow()
                 .environmentObject(appState)
+                .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 500, height: 600)

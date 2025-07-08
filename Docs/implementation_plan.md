@@ -12,7 +12,7 @@
   - **Step Dependencies**: None
   - **User Instructions**: Ensure Xcode 15+ is installed and create Apple Developer account for code signing
 
-- [ ] Step 2: Create Core Data Model
+- [x] Step 2: Create Core Data Model
   - **Task**: Implement Core Data stack with entities for BreakSession, DailyStatistics, and UserPreferences as specified in the database schema
   - **Files**:
     - `Work Mate/Data/CoreData/WorkMate.xcdatamodeld`: Define Core Data entities with attributes and relationships

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Work Mate</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconFile</key>
+	<string></string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2025 Karthick Sakkaravarthi. All rights reserved.</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<true/>
+	<key>NSSupportsSuddenTermination</key>
+	<false/>
+	<key>NSRequiresAquaSystemAppearance</key>
+	<false/>
+	
+	<!-- Privacy Permissions and Usage Descriptions -->
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Work Mate needs accessibility access to monitor your computer activity and provide accurate break timing. This helps determine when you're actively working so breaks can be scheduled appropriately.</string>
+	
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Work Mate needs to send Apple Events to monitor system activity and manage break scheduling effectively.</string>
+	
+	<key>NSCalendarsUsageDescription</key>
+	<string>Work Mate can integrate with your calendar to avoid interrupting meetings and important events. This is optional and enhances the smart scheduling feature.</string>
+	
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Work Mate sends break reminders and notifications to help you maintain healthy work habits.</string>
+	
+	<!-- Background App Configuration -->
+	<key>LSBackgroundOnly</key>
+	<false/>
+	
+	<!-- Prevent app from showing in Dock -->
+	<key>LSUIElement</key>
+	<true/>
+	
+	<!-- Document Types (if needed for data export) -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Work Mate Statistics</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.comma-separated-values-text</string>
+				<string>public.json</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- URL Schemes (for future features like deep linking) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.workmate.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>workmate</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- macOS Specific -->
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	
+	<!-- High Resolution Display Support -->
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	
+	<!-- Window Behavior -->
+	<key>NSAppleScriptEnabled</key>
+	<false/>
+	
+	<!-- Supported Platforms -->
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	
+	<!-- App Transport Security -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<!-- Add any specific domains if needed for future cloud sync -->
+		</dict>
+	</dict>
+</dict>
+</plist> 

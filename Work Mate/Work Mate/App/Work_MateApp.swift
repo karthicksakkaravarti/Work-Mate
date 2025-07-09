@@ -23,8 +23,20 @@ struct Work_MateApp: App {
     // Activity monitor
     @StateObject private var activityMonitor = ActivityMonitor()
     
+    // Break scheduler
+    @StateObject private var breakScheduler: BreakScheduler
+    
     // Core state objects that will be created in later steps
     @StateObject private var appState = AppState()
+    
+    init() {
+        // Initialize BreakScheduler with dependencies
+        let activityMonitor = ActivityMonitor()
+        let breakScheduler = BreakScheduler(activityMonitor: activityMonitor)
+        
+        _activityMonitor = StateObject(wrappedValue: activityMonitor)
+        _breakScheduler = StateObject(wrappedValue: breakScheduler)
+    }
     
     var body: some Scene {
         // MenuBar application instead of regular window
@@ -34,6 +46,7 @@ struct Work_MateApp: App {
                 .environmentObject(settingsManager)
                 .environmentObject(permissionManager)
                 .environmentObject(activityMonitor)
+                .environmentObject(breakScheduler)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .menuBarExtraStyle(.window)
@@ -45,6 +58,7 @@ struct Work_MateApp: App {
                 .environmentObject(settingsManager)
                 .environmentObject(permissionManager)
                 .environmentObject(activityMonitor)
+                .environmentObject(breakScheduler)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .windowResizability(.contentSize)
@@ -54,9 +68,17 @@ struct Work_MateApp: App {
 }
 
 // Temporary placeholder for AppState - will be properly implemented in Step 18
+@MainActor
 class AppState: ObservableObject {
     @Published var isBreakActive: Bool = false
     @Published var timeUntilNextBreak: TimeInterval = 600 // 10 minutes default
+    @Published var currentBreakType: BreakType?
+    
+    func updateFromBreakScheduler(_ breakScheduler: BreakScheduler) {
+        isBreakActive = breakScheduler.isBreakActive
+        timeUntilNextBreak = breakScheduler.timeUntilNextBreak
+        currentBreakType = breakScheduler.currentBreak?.type
+    }
 }
 
 // Temporary placeholder views - will be properly implemented in later steps
@@ -65,18 +87,19 @@ struct MenuBarView: View {
     @EnvironmentObject var settingsManager: SettingsManager
     @EnvironmentObject var permissionManager: PermissionManager
     @EnvironmentObject var activityMonitor: ActivityMonitor
+    @EnvironmentObject var breakScheduler: BreakScheduler
     
     var body: some View {
         VStack(spacing: 12) {
             Text("Work Mate")
                 .font(.headline)
             
-            // Activity Status
+            // Scheduler Status
             HStack {
-                Image(systemName: activityStatusIcon)
-                    .foregroundColor(activityStatusColor)
+                Image(systemName: schedulerStatusIcon)
+                    .foregroundColor(schedulerStatusColor)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(activityMonitor.statusDescription)
+                    Text(breakScheduler.schedulerState.displayName)
                         .font(.caption)
                         .foregroundColor(.primary)
                     if !permissionManager.requiredPermissionsGranted {
@@ -99,37 +122,141 @@ struct MenuBarView: View {
             } else {
                 Divider()
                 
-                if appState.isBreakActive {
-                    Text("Break in progress...")
-                        .foregroundColor(.orange)
-                } else {
-                    HStack {
-                        Text("Next micro break:")
+                // Break Status Section
+                if breakScheduler.isBreakActive {
+                    VStack(spacing: 4) {
+                        Text("Break Active")
                             .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("\(settingsManager.microBreakInterval) min")
-                            .font(.caption.monospacedDigit())
-                            .foregroundColor(.blue)
+                            .foregroundColor(.orange)
+                        if let currentBreak = breakScheduler.currentBreak {
+                            Text(currentBreak.type.displayName)
+                                .font(.caption.weight(.medium))
+                                .foregroundColor(.primary)
+                        }
+                        
+                        HStack {
+                            Button("Skip") {
+                                breakScheduler.skipCurrentBreak()
+                            }
+                            .controlSize(.mini)
+                            
+                            if let currentBreak = breakScheduler.currentBreak {
+                                if currentBreak.status == .paused {
+                                    Button("Resume") {
+                                        breakScheduler.resumeCurrentBreak()
+                                    }
+                                    .controlSize(.mini)
+                                } else {
+                                    Button("Pause") {
+                                        breakScheduler.pauseCurrentBreak()
+                                    }
+                                    .controlSize(.mini)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Next Break Information
+                    VStack(spacing: 4) {
+                        if let nextBreakType = breakScheduler.nextBreakType {
+                            HStack {
+                                Text("Next \(nextBreakType.displayName):")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(formatTimeInterval(breakScheduler.timeUntilNextBreak))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundColor(nextBreakType == .micro ? .blue : .green)
+                            }
+                        }
+                        
+                        if breakScheduler.nextMicroBreak != nil {
+                            HStack {
+                                Text("Micro break interval:")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text("\(settingsManager.microBreakInterval) min")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        if breakScheduler.nextRegularBreak != nil {
+                            HStack {
+                                Text("Regular break interval:")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text("\(settingsManager.regularBreakInterval) min")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                     
+                    // Quick Actions
                     HStack {
-                        Text("Next regular break:")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("\(settingsManager.regularBreakInterval) min")
-                            .font(.caption.monospacedDigit())
-                            .foregroundColor(.green)
+                        Button("Micro Break") {
+                            breakScheduler.triggerBreak(type: .micro)
+                        }
+                        .controlSize(.mini)
+                        
+                        Button("Regular Break") {
+                            breakScheduler.triggerBreak(type: .regular)
+                        }
+                        .controlSize(.mini)
+                    }
+                    
+                    // Scheduler Controls
+                    HStack {
+                        if breakScheduler.schedulerState == .running {
+                            Button("Pause") {
+                                breakScheduler.pauseScheduling()
+                            }
+                            .controlSize(.mini)
+                        } else if breakScheduler.schedulerState == .paused {
+                            Button("Resume") {
+                                breakScheduler.resumeScheduling()
+                            }
+                            .controlSize(.mini)
+                        } else {
+                            Button("Start") {
+                                breakScheduler.startScheduling()
+                            }
+                            .controlSize(.mini)
+                        }
+                        
+                        if breakScheduler.schedulerState != .stopped {
+                            Button("Stop") {
+                                breakScheduler.stopScheduling()
+                            }
+                            .controlSize(.mini)
+                        }
                     }
                 }
                 
                 Divider()
                 
+                // Activity Status
+                HStack {
+                    Image(systemName: activityStatusIcon)
+                        .foregroundColor(activityStatusColor)
+                        .font(.caption)
+                    Text(activityMonitor.statusDescription)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                
                 HStack {
                     Image(systemName: settingsManager.soundEnabled ? "speaker.2" : "speaker.slash")
                         .foregroundColor(settingsManager.soundEnabled ? .primary : .secondary)
-                    Text(settingsManager.overlayTypeEnum.displayName)
                         .font(.caption)
+                    Text(settingsManager.overlayTypeEnum.displayName)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
+                    Spacer()
                 }
             }
             
@@ -144,12 +271,42 @@ struct MenuBarView: View {
             }
         }
         .padding()
-        .frame(width: 250)
+        .frame(width: 280)
         .onAppear {
-            // Start activity monitoring if permissions are granted
+            // Start services if permissions are granted
             if permissionManager.requiredPermissionsGranted {
                 activityMonitor.startMonitoring()
+                breakScheduler.startScheduling()
             }
+        }
+        .onDisappear {
+            // Services continue running in background
+        }
+    }
+    
+    private var schedulerStatusIcon: String {
+        switch breakScheduler.schedulerState {
+        case .running:
+            return "play.circle.fill"
+        case .paused:
+            return "pause.circle.fill"
+        case .stopped:
+            return "stop.circle.fill"
+        case .disabled:
+            return "xmark.circle.fill"
+        }
+    }
+    
+    private var schedulerStatusColor: Color {
+        switch breakScheduler.schedulerState {
+        case .running:
+            return .green
+        case .paused:
+            return .orange
+        case .stopped:
+            return .red
+        case .disabled:
+            return .gray
         }
     }
     
@@ -176,6 +333,17 @@ struct MenuBarView: View {
             return .red
         case .unknown:
             return .gray
+        }
+    }
+    
+    private func formatTimeInterval(_ interval: TimeInterval) -> String {
+        let minutes = Int(interval) / 60
+        let seconds = Int(interval) % 60
+        
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
         }
     }
     

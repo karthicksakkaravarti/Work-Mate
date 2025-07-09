@@ -33,7 +33,7 @@
   - **User Instructions**: None
 
 ## Core Services Implementation
-- [ ] Step 4: Build Activity Monitor Service
+- [x] Step 4: Build Activity Monitor Service
   - **Task**: Implement user activity detection using CGEventSource for keyboard/mouse monitoring with proper permission handling
   - **Files**:
     - `Work Mate/Core/Services/ActivityMonitor.swift`: Create ObservableObject for activity monitoring with CGEventSource integration
@@ -41,12 +41,12 @@
   - **Step Dependencies**: Step 3
   - **User Instructions**: Test accessibility permissions in System Preferences > Security & Privacy > Accessibility
 
-- [ ] Step 5: Create Break Scheduler Service
+- [x] Step 5: Create Break Scheduler Service
   - **Task**: Implement core break scheduling logic with separate timers for micro and regular breaks, including activity-based pausing
   - **Files**:
-    - `Work Mate/Core/Services/BreakScheduler.swift`: Main scheduling service with Timer management and break triggering logic
-    - `Work Mate/Core/Services/TimerManager.swift`: Dedicated timer management with pause/resume functionality
-    - `Work Mate/Core/Models/BreakType.swift`: Define break types and duration enums
+    - `Work Mate/Core/Services/BreakScheduler.swift`: Main scheduling service with Timer management and break triggering logic ✅
+    - `Work Mate/Core/Services/TimerManager.swift`: Dedicated timer management with pause/resume functionality ✅
+    - `Work Mate/Core/Models/BreakType.swift`: Define break types and duration enums ✅
   - **Step Dependencies**: Step 4
   - **User Instructions**: None
 

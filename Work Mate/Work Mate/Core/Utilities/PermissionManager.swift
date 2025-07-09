@@ -200,16 +200,34 @@ class PermissionManager: ObservableObject {
     @MainActor
     func requestNotificationPermission() async {
         let center = UNUserNotificationCenter.current()
-        
-        do {
-            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-            notificationPermission = granted ? .granted : .denied
-            
-            // Post notification about permission change
-            NotificationCenter.default.post(name: .permissionsChanged, object: nil)
-        } catch {
-            print("Error requesting notification permission: \(error)")
-            notificationPermission = .denied
+        let settings = await center.notificationSettings()
+
+        switch settings.authorizationStatus {
+        case .notDetermined:
+            // Permission has not been requested yet, so request it
+            do {
+                let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                notificationPermission = granted ? .granted : .denied
+                
+                // Post notification about permission change
+                NotificationCenter.default.post(name: .permissionsChanged, object: nil)
+            } catch {
+                print("Error requesting notification permission: \(error.localizedDescription)")
+                notificationPermission = .denied
+            }
+        case .denied:
+            // Permission was denied, guide user to settings
+            print("Notification permission previously denied. Opening settings.")
+            await MainActor.run {
+                openNotificationPreferences()
+            }
+        case .authorized, .provisional, .ephemeral:
+            // Permission is already granted
+            print("Notification permission already granted.")
+            notificationPermission = .granted
+        @unknown default:
+            print("Unknown notification authorization status.")
+            notificationPermission = .unknown
         }
     }
     

@@ -17,6 +17,12 @@ struct Work_MateApp: App {
     // Settings manager
     @StateObject private var settingsManager = SettingsManager.shared
     
+    // Permission manager
+    @StateObject private var permissionManager = PermissionManager.shared
+    
+    // Activity monitor
+    @StateObject private var activityMonitor = ActivityMonitor()
+    
     // Core state objects that will be created in later steps
     @StateObject private var appState = AppState()
     
@@ -26,6 +32,8 @@ struct Work_MateApp: App {
             MenuBarView()
                 .environmentObject(appState)
                 .environmentObject(settingsManager)
+                .environmentObject(permissionManager)
+                .environmentObject(activityMonitor)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .menuBarExtraStyle(.window)
@@ -35,6 +43,8 @@ struct Work_MateApp: App {
             SettingsWindow()
                 .environmentObject(appState)
                 .environmentObject(settingsManager)
+                .environmentObject(permissionManager)
+                .environmentObject(activityMonitor)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .windowResizability(.contentSize)
@@ -53,43 +63,74 @@ class AppState: ObservableObject {
 struct MenuBarView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var settingsManager: SettingsManager
+    @EnvironmentObject var permissionManager: PermissionManager
+    @EnvironmentObject var activityMonitor: ActivityMonitor
     
     var body: some View {
         VStack(spacing: 12) {
             Text("Work Mate")
                 .font(.headline)
             
-            if appState.isBreakActive {
-                Text("Break in progress...")
-                    .foregroundColor(.orange)
-            } else {
-                HStack {
-                    Text("Next micro break:")
+            // Activity Status
+            HStack {
+                Image(systemName: activityStatusIcon)
+                    .foregroundColor(activityStatusColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(activityMonitor.statusDescription)
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("\(settingsManager.microBreakInterval) min")
-                        .font(.caption.monospacedDigit())
-                        .foregroundColor(.blue)
+                        .foregroundColor(.primary)
+                    if !permissionManager.requiredPermissionsGranted {
+                        Text("Permissions needed")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
                 }
-                
-                HStack {
-                    Text("Next regular break:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("\(settingsManager.regularBreakInterval) min")
-                        .font(.caption.monospacedDigit())
-                        .foregroundColor(.green)
-                }
+                Spacer()
             }
             
-            Divider()
-            
-            HStack {
-                Image(systemName: settingsManager.soundEnabled ? "speaker.2" : "speaker.slash")
-                    .foregroundColor(settingsManager.soundEnabled ? .primary : .secondary)
-                Text(settingsManager.overlayTypeEnum.displayName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            if !permissionManager.requiredPermissionsGranted {
+                Button("Grant Permissions") {
+                    Task {
+                        await activityMonitor.requestPermissions()
+                    }
+                }
+                .buttonStyle(BorderedProminentButtonStyle())
+                .controlSize(.small)
+            } else {
+                Divider()
+                
+                if appState.isBreakActive {
+                    Text("Break in progress...")
+                        .foregroundColor(.orange)
+                } else {
+                    HStack {
+                        Text("Next micro break:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("\(settingsManager.microBreakInterval) min")
+                            .font(.caption.monospacedDigit())
+                            .foregroundColor(.blue)
+                    }
+                    
+                    HStack {
+                        Text("Next regular break:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("\(settingsManager.regularBreakInterval) min")
+                            .font(.caption.monospacedDigit())
+                            .foregroundColor(.green)
+                    }
+                }
+                
+                Divider()
+                
+                HStack {
+                    Image(systemName: settingsManager.soundEnabled ? "speaker.2" : "speaker.slash")
+                        .foregroundColor(settingsManager.soundEnabled ? .primary : .secondary)
+                    Text(settingsManager.overlayTypeEnum.displayName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Divider()
@@ -103,7 +144,39 @@ struct MenuBarView: View {
             }
         }
         .padding()
-        .frame(width: 220)
+        .frame(width: 250)
+        .onAppear {
+            // Start activity monitoring if permissions are granted
+            if permissionManager.requiredPermissionsGranted {
+                activityMonitor.startMonitoring()
+            }
+        }
+    }
+    
+    private var activityStatusIcon: String {
+        switch activityMonitor.currentStatus {
+        case .active:
+            return "person.fill"
+        case .inactive:
+            return "person.fill.questionmark"
+        case .away:
+            return "person.slash"
+        case .unknown:
+            return "questionmark.circle"
+        }
+    }
+    
+    private var activityStatusColor: Color {
+        switch activityMonitor.currentStatus {
+        case .active:
+            return .green
+        case .inactive:
+            return .orange
+        case .away:
+            return .red
+        case .unknown:
+            return .gray
+        }
     }
     
     private func openSettings() {
@@ -120,12 +193,76 @@ struct MenuBarView: View {
 struct SettingsWindow: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var settingsManager: SettingsManager
+    @EnvironmentObject var permissionManager: PermissionManager
+    @EnvironmentObject var activityMonitor: ActivityMonitor
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Work Mate Settings")
                 .font(.title)
                 .padding(.bottom)
+            
+            // Permissions Section
+            GroupBox("Permissions & Activity Monitoring") {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(PermissionType.allCases, id: \.self) { permissionType in
+                        HStack {
+                            Image(systemName: permissionIcon(for: permissionType))
+                                .foregroundColor(permissionColor(for: permissionType))
+                                .frame(width: 20)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(permissionType.displayName)
+                                    .font(.caption)
+                                Text(permissionType.description)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Text(permissionManager.status(for: permissionType).displayName)
+                                .font(.caption)
+                                .foregroundColor(permissionColor(for: permissionType))
+                            
+                            if !permissionManager.isGranted(permissionType) && permissionType.isRequired {
+                                Button("Grant") {
+                                    permissionManager.openSystemPreferences(for: permissionType)
+                                }
+                                .buttonStyle(BorderedButtonStyle())
+                                .controlSize(.mini)
+                            }
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    HStack {
+                        Text("Activity Status:")
+                        Spacer()
+                        Text(activityMonitor.statusDescription)
+                            .foregroundColor(activityMonitor.isUserActive ? .green : .orange)
+                    }
+                    
+                    if permissionManager.requiredPermissionsGranted {
+                        HStack {
+                            Toggle("Enable Activity Monitoring", isOn: .constant(activityMonitor.isMonitoring))
+                                .disabled(true) // Always on when permissions are granted
+                            
+                            Spacer()
+                            
+                            Button("Test Activity") {
+                                #if DEBUG
+                                activityMonitor.simulateActivity()
+                                #endif
+                            }
+                            .buttonStyle(BorderedButtonStyle())
+                            .controlSize(.mini)
+                        }
+                    }
+                }
+                .padding()
+            }
             
             GroupBox("Break Intervals") {
                 VStack(alignment: .leading, spacing: 12) {
@@ -183,7 +320,22 @@ struct SettingsWindow: View {
                     }
                     
                     Toggle("Smart scheduling", isOn: $settingsManager.enableSmartScheduling)
-                    Toggle("Pause on inactivity", isOn: $settingsManager.pauseOnInactivity)
+                    
+                    HStack {
+                        Toggle("Pause on inactivity", isOn: $settingsManager.pauseOnInactivity)
+                        
+                        if settingsManager.pauseOnInactivity {
+                            Spacer()
+                            Stepper("After \(settingsManager.inactivityThreshold) seconds",
+                                   value: $settingsManager.inactivityThreshold,
+                                   in: 30...300,
+                                   step: 30)
+                                .onChange(of: settingsManager.inactivityThreshold) { _ in
+                                    activityMonitor.updateConfigFromSettings()
+                                }
+                        }
+                    }
+                    
                     Toggle("Enable sounds", isOn: $settingsManager.soundEnabled)
                 }
                 .padding()
@@ -192,6 +344,7 @@ struct SettingsWindow: View {
             HStack {
                 Button("Reset to Defaults") {
                     settingsManager.resetToDefaults()
+                    activityMonitor.updateConfigFromSettings()
                 }
                 .buttonStyle(BorderedButtonStyle())
                 
@@ -205,6 +358,41 @@ struct SettingsWindow: View {
             Spacer()
         }
         .padding()
-        .frame(minWidth: 500, minHeight: 600)
+        .frame(minWidth: 550, minHeight: 700)
+        .onAppear {
+            activityMonitor.updateConfigFromSettings()
+        }
+    }
+    
+    private func permissionIcon(for type: PermissionType) -> String {
+        let status = permissionManager.status(for: type)
+        switch status {
+        case .granted:
+            return "checkmark.circle.fill"
+        case .denied:
+            return "xmark.circle.fill"
+        case .notRequested:
+            return "questionmark.circle"
+        case .restricted:
+            return "exclamationmark.triangle.fill"
+        case .unknown:
+            return "circle"
+        }
+    }
+    
+    private func permissionColor(for type: PermissionType) -> Color {
+        let status = permissionManager.status(for: type)
+        switch status {
+        case .granted:
+            return .green
+        case .denied:
+            return .red
+        case .notRequested:
+            return .blue
+        case .restricted:
+            return .orange
+        case .unknown:
+            return .gray
+        }
     }
 }

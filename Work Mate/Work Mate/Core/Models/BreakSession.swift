@@ -141,11 +141,11 @@ enum BreakType: String, CaseIterable, Codable {
     var defaultInterval: TimeInterval {
         switch self {
         case .micro:
-            return 10 * 60 // 10 minutes
+            return 1 * 60 // 1 minute for testing
         case .regular:
-            return 60 * 60 // 60 minutes
+            return 2 * 60 // 2 minutes for testing
         case .custom:
-            return 30 * 60 // 30 minutes default
+            return 3 * 60 // 3 minutes for testing
         }
     }
     

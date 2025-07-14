@@ -20,6 +20,7 @@ class BreakScheduler: ObservableObject {
     private let activityMonitor: ActivityMonitor
     private let settingsManager: SettingsManager
     private let persistenceController: PersistenceController
+    private let smartScheduling: SmartScheduling
     
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
@@ -38,12 +39,14 @@ class BreakScheduler: ObservableObject {
     init(timerManager: TimerManager? = nil,
          activityMonitor: ActivityMonitor,
          settingsManager: SettingsManager = SettingsManager.shared,
-         persistenceController: PersistenceController = PersistenceController.shared) {
+         persistenceController: PersistenceController = PersistenceController.shared,
+         smartScheduling: SmartScheduling? = nil) {
         
         self.timerManager = timerManager ?? TimerManager()
         self.activityMonitor = activityMonitor
         self.settingsManager = settingsManager
         self.persistenceController = persistenceController
+        self.smartScheduling = smartScheduling ?? SmartScheduling(settingsManager: settingsManager)
         
         setupObservers()
         loadConfigurations()
@@ -282,45 +285,121 @@ class BreakScheduler: ObservableObject {
     
     private func scheduleNextBreak(type: BreakType) {
         let configuration = getConfiguration(for: type)
-        guard configuration.enabled else { return }
+        guard configuration.enabled else { 
+            print("Break scheduling disabled for \(type.displayName)")
+            return 
+        }
         
         // Calculate next break time based on last break or current time
         let lastBreak = lastBreakTime[type] ?? Date()
         let nextBreakTime = lastBreak.addingTimeInterval(configuration.interval)
         
+        // If the calculated next break time is in the past, schedule it for the future
+        let adjustedNextBreakTime = max(nextBreakTime, Date().addingTimeInterval(5)) // At least 5 seconds from now
+        
         // Update the next break time
         switch type {
         case .micro:
-            nextMicroBreak = nextBreakTime
+            nextMicroBreak = adjustedNextBreakTime
         case .regular:
-            nextRegularBreak = nextBreakTime
+            nextRegularBreak = adjustedNextBreakTime
         case .custom:
             return // Custom breaks are manually triggered
         }
         
         // Schedule timer for this break
-        let timeUntilBreak = nextBreakTime.timeIntervalSinceNow
+        let timeUntilBreak = adjustedNextBreakTime.timeIntervalSinceNow
         if timeUntilBreak > 0 {
             let timerID = type == .micro ? TimerManager.TimerID.microBreak : TimerManager.TimerID.regularBreak
+            
+            print("Scheduling \(type.displayName) in \(Int(timeUntilBreak))s")
             
             timerManager.startTimer(id: timerID, interval: timeUntilBreak) { [weak self] in
                 Task { @MainActor in
                     self?.handleBreakTimer(type: type)
                 }
             }
+        } else {
+            print("Warning: Cannot schedule \(type.displayName) - time until break is \(timeUntilBreak)")
         }
     }
     
     private func handleBreakTimer(type: BreakType) {
-        guard schedulerState.isActive else { return }
-        guard !isBreakActive else { return }
+        guard schedulerState.isActive else { 
+            print("Break timer fired but scheduler is not active (state: \(schedulerState.displayName))")
+            return 
+        }
+        guard !isBreakActive else { 
+            print("Break timer fired but another break is already active")
+            return 
+        }
+        
+        print("Break timer fired for \(type.displayName)")
         
         // Check if user is inactive
         if !activityMonitor.isUserActive {
-            print("Skipping break due to user inactivity")
-            scheduleNextBreak(type: type) // Reschedule for next interval
+            print("Skipping \(type.displayName) due to user inactivity (status: \(activityMonitor.currentStatus.displayName))")
+            
+            // Update last break time to now so next break is scheduled properly
+            lastBreakTime[type] = Date()
+            
+            // Reschedule for next interval
+            scheduleNextBreak(type: type)
             return
         }
+        
+        // Check smart scheduling decision
+        let schedulingDecision = smartScheduling.evaluateBreakTiming()
+        
+        if schedulingDecision.shouldDelay {
+            let reason = schedulingDecision.reason?.displayName ?? "Unknown reason"
+            print("Delaying \(type.displayName) due to smart scheduling: \(reason)")
+            
+            // Determine delay duration
+            let delayDuration = schedulingDecision.suggestedDelay ?? 5 * 60 // Default 5 minutes
+            let nextTime = Date().addingTimeInterval(delayDuration)
+            
+            // Update next break time based on smart scheduling
+            switch type {
+            case .micro:
+                nextMicroBreak = nextTime
+            case .regular:
+                nextRegularBreak = nextTime
+            case .custom:
+                break
+            }
+            
+            // Reschedule break for the delayed time
+            let timerID = type == .micro ? TimerManager.TimerID.microBreak : TimerManager.TimerID.regularBreak
+            timerManager.startTimer(id: timerID, interval: delayDuration) { [weak self] in
+                Task { @MainActor in
+                    self?.handleBreakTimer(type: type)
+                }
+            }
+            
+            // Save the skip reason
+            let skipReason: SkipReason
+            switch schedulingDecision.reason {
+            case .calendarEvent, .meeting:
+                skipReason = .meeting
+            case .blacklistedApp:
+                skipReason = .blacklistedApp
+            case .fullscreenApp:
+                skipReason = .fullscreenApp
+            case .presentation, .systemPresentation:
+                skipReason = .presentation
+            case .doNotDisturb, .focusMode:
+                skipReason = .systemUnavailable
+            default:
+                skipReason = .other
+            }
+            
+            // Record the delayed break
+            recordSkippedBreak(type: type, reason: skipReason)
+            return
+        }
+        
+        print("Triggering \(type.displayName)")
         
         let configuration = getConfiguration(for: type)
         let scheduledBreak = ScheduledBreak(
@@ -402,6 +481,24 @@ class BreakScheduler: ObservableObject {
         } catch {
             print("Failed to save break session: \(error)")
         }
+    }
+    
+    private func recordSkippedBreak(type: BreakType, reason: SkipReason) {
+        let configuration = getConfiguration(for: type)
+        var scheduledBreak = ScheduledBreak(
+            type: type,
+            scheduledTime: Date(),
+            duration: configuration.duration
+        )
+        
+        scheduledBreak.status = .skipped
+        scheduledBreak.skipReason = reason
+        scheduledBreak.actualEndTime = Date()
+        
+        // Save to Core Data
+        saveBreakSession(scheduledBreak)
+        
+        print("Recorded skipped break: \(type.displayName) - \(reason.displayName)")
     }
     
     private func startActivityMonitoring() {

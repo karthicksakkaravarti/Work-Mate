@@ -65,9 +65,9 @@ enum SettingsKeys {
 enum SettingsDefaults {
     
     // MARK: - Break Timing Defaults (in minutes for intervals, seconds for durations)
-    static let microBreakInterval: Int = 10        // 10 minutes
+    static let microBreakInterval: Int = 1         // 1 minute for testing
     static let microBreakDuration: Int = 30        // 30 seconds
-    static let regularBreakInterval: Int = 60      // 60 minutes (1 hour)
+    static let regularBreakInterval: Int = 2       // 2 minutes for testing
     static let regularBreakDuration: Int = 300     // 300 seconds (5 minutes)
     
     // MARK: - Break Behavior Defaults

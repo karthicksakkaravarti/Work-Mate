@@ -59,7 +59,7 @@
   - **Step Dependencies**: Step 5
   - **User Instructions**: Grant calendar access when prompted during testing
 
-- [ ] Step 7: Build Analytics Service
+- [x] Step 7: Build Analytics Service
   - **Task**: Implement break tracking, statistics calculation, and data export functionality
   - **Files**:
     - `Work Mate/Core/Services/AnalyticsService.swift`: Break session recording and statistics aggregation
@@ -69,7 +69,7 @@
   - **User Instructions**: None
 
 ## User Interface Components
-- [ ] Step 8: Create Design System and Base Components
+- [x] Step 8: Create Design System and Base Components
   - **Task**: Implement the design system with colors, typography, spacing, and reusable UI components
   - **Files**:
     - `Work Mate/Views/Components/DesignSystem.swift`: Color palette, typography, and spacing constants
